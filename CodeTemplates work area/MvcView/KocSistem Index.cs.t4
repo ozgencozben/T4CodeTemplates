@@ -1,0 +1,567 @@
+﻿<#@ template language="C#" HostSpecific="True" #>
+<#@ output extension=".cshtml" #>
+<#@ include file="Imports.include.t4" #>
+<#@ include file="ModelMetadataFunctions.cs.include.t4" #>
+<#@ include file=".\Manager.ttinclude" #>
+@using Business.Contracts.DataContracts.ViewModels
+@using Res
+@model <#=  ViewDataTypeName  #>
+
+<# 
+	string columns = "";
+	string modelPageName = (ViewDataTypeName.Split('.').Last().Replace("Vm","").Replace("DTO",""));
+	string modelPageNameLower = modelPageName.ToLower().Trim();
+    
+    /*string filterColumns = "";
+    string modelRootNamespace = "TTPOL.Common";
+    string moduleName = ViewDataTypeName.Replace(modelRootNamespace + ".", "");
+    moduleName = (moduleName.IndexOf('.') > 0) ? moduleName.Split('.')[0] : "";
+    string modelPageNameFullLower = (!string.IsNullOrEmpty(moduleName) ? moduleName.ToLowerInvariant() + "_" : "") + (ViewDataTypeName.Split('.').Last().Replace("Simple","").Replace("View","").Replace("Filter","")).ToLowerInvariant();*/
+
+	IList<string> excludedFields = new List<string>() {"AktifMi", "CreatedBy", "CreatedDate", "UpdatedBy", "UpdatedDate", "IsUsingPartialValidation", "IsValid", "HasErrors"};
+#>
+
+@{
+ViewBag.Title = @Res.<#= modelPageName #> + " " + @Res.Sayfasi;
+}
+
+@section Scripts {
+
+<script>
+    var Yetki = Yetki || {};	
+    Yetki.<#= modelPageNameLower #> =   Yetki.<#= modelPageNameLower #> || {};
+    Yetki.<#= modelPageNameLower #>.Menu = "@ViewBag.Yetki.Menu.ToString().ToLower()" =="true" ? true : false;
+    Yetki.<#= modelPageNameLower #>.Listeleme = "@ViewBag.Yetki.Listeleme.ToString().ToLower()" =="true" ? true : false;
+    Yetki.<#= modelPageNameLower #>.Goruntuleme = "@ViewBag.Yetki.Goruntuleme.ToString().ToLower()" =="true" ? true : false;
+
+    Yetki.<#= modelPageNameLower #>.Kaydetme = "@ViewBag.Yetki.Kaydetme.ToString().ToLower()" =="true" ? true : false;
+    Yetki.<#= modelPageNameLower #>.Silme = "@ViewBag.Yetki.Silme.ToString().ToLower()" =="true" ? true : false;
+    Yetki.<#= modelPageNameLower #>.Duzenleme = "@ViewBag.Yetki.Duzenleme.ToString().ToLower()" =="true" ? true : false;
+
+</script>
+
+    <script src="~/Scripts/<#= modelPageName + "/" + modelPageNameLower #>_index.js"></script>
+    <script src="~/Scripts/<#= modelPageName + "/" + modelPageNameLower #>_create.js"></script>
+    <script src="~/Scripts/<#= modelPageName + "/" + modelPageNameLower #>_edit.js"></script>
+}
+
+<h2>@Res.<#= modelPageName #> @Res.Sayfasi</h2>
+
+<div class="breadcrumb-line">
+    <ul class="breadcrumb">
+		<li><a href="/Home/Index"><i class="glyphicon glyphicon-home"></i></a></li>
+        <li>@Res. </li>
+        <li>@Res.<#= modelPageName #> @Res.Sayfasi</li>
+    </ul>
+</div>
+
+<div class="row">
+    <div class="portlet light">
+        <div class="col-md-12" style="padding-right: 0px;padding-left: 0px;">
+            <div class="panel-group">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">
+                            <a data-toggle="collapse" style="font-size: larger;" href="#collapseIslemPanel">@Res.Islemler</a>
+                        </h3>
+                    </div>
+                    <div id="collapseIslemPanel" class="panel-collapse collapse in">
+                        <div class="panel-body">
+                            <div class="row col-md-12" id="IslemButonlar">
+							    @if (ViewBag.Yetki.Kaydetme)
+                                {
+                                <button type="button" id="btnEkle" class="btn btn-primary btn-icon" onClick="showCreateModal()"><i class="glyphicon glyphicon-plus"></i> @Res.Ekle </button>
+								}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+	<div class="portlet light bordered">
+		<div class="portlet-title">
+			<div class="caption font-dark">
+				<i class="glyphicon glyphicon-align-justify"></i>
+				<span class="caption-subject bold uppercase">@Res.<#= modelPageName #> @Res.Listesi</span>
+			</div>
+			<div class="tools"> </div>
+		</div>
+
+		<div class="portlet-body">
+			<div class="dataTables_wrapper" style="overflow-y: auto;">
+			    @if (ViewBag.Yetki.Listeleme)
+                {
+				<table id="tbl<#= modelPageName #>ListAjax" class="table datatable-basic" data-request-url="@Url.Action("GetAll", "<#= modelPageName #>")">
+				<thead>
+
+				<!-- Filtreler -->
+				<tr>
+				<th>Id</th>
+					<#
+					IEnumerable<PropertyMetadata> properties = ModelMetadata.Properties;
+					
+                    foreach (PropertyMetadata property in properties) 
+                    {
+					    if (property.Scaffold && !property.IsPrimaryKey && !property.IsForeignKey) {
+					    #>
+					          
+					    <#
+					    if (property.IsAssociation && GetRelatedModelMetadata(property) == null) {
+					    continue;
+					    }
+					        if(!excludedFields.Contains(GetValueExpression(property).ToString()))
+					        {
+                                if(GetValueExpression(property).Contains("Id"))
+                                {
+                                    #>
+					                <th foreginkey>@Res.<#= GetValueExpression(property) #></th>
+					                <#
+                                }
+                                else
+                                {
+					                #>
+					                <th>@Res.<#= GetValueExpression(property) #></th>
+					                <#
+                                }
+
+					        }
+					    }
+					}
+					#> 
+                    
+					<th>
+						<select id="tbl<#= modelPageName #>ListSelect" class="bs-select form-control input-small" onchange="RefreshTable();">
+							<option value="true" selected="selected">@Res.Aktif</option>
+							<option value="false">@Res.Pasif</option>
+							<option value="">@Res.Tumu</option>
+						</select>
+					</th>
+					<th>
+						 <button type="button" onclick="RefreshTable()" class="btn btn-primary">@Res.Ara <i class="glyphicon glyphicon-search position-right"></i></button>
+                         <button type="button" onclick="FiltreTemizle()" class="btn btn-primary">@Res.Temizle <i class="glyphicon glyphicon-erase position-right"></i></button>
+					</th>
+				</tr>
+
+				<!-- Başlıklar -->
+				<tr>
+				<th>Id</th>
+					<#
+					IEnumerable<PropertyMetadata> properties2 = ModelMetadata.Properties;
+					foreach (PropertyMetadata property in properties2) {
+					if (property.Scaffold && !property.IsPrimaryKey && !property.IsForeignKey) {
+					#>
+					<#
+					if (property.IsAssociation && GetRelatedModelMetadata(property) == null) {
+					continue;
+					}
+					if(!excludedFields.Contains(GetValueExpression(property).ToString()))
+					{
+					columns += "{ \"data\": \"" + GetValueExpression(property) + "\" },\n";
+					#>
+					<th>@Res.<#= GetValueExpression(property) #></th>
+					<#
+					}
+					}
+					}
+					#>                         
+					<th>@Res.AktifMi</th>
+					<th class="text-center"></th>
+				</tr>
+				</thead>
+				</table>
+				}
+			</div>
+		</div>
+	</div>
+</div>
+     
+
+@Html.Partial("Create", new <#= modelPageName #>DTO()) 
+@Html.Partial("Edit", new <#= modelPageName #>DTO()) 
+
+@using (Html.BeginForm("GetAll", "<#= modelPageName #>", null, FormMethod.Post, new { id = "frmItemGetAll" }))
+{
+    @Html.AntiForgeryToken()
+    <input type="hidden" id="Name" name="Name" value="">
+}
+
+@using (Html.BeginForm("Passive", "<#= modelPageName #>", null, FormMethod.Post, new { id = "frmItemPassive" }))
+{
+    @Html.AntiForgeryToken()
+    <input type="hidden" id="Name" name="Name" value="">
+}
+
+@using (Html.BeginForm("Delete", "<#= modelPageName #>", null, FormMethod.Post, new { id = "frmItemDelete" }))
+{
+    @Html.AntiForgeryToken()
+    <input type="hidden" id="Name" name="Name" value="">
+}
+
+@using (Html.BeginForm("GetDTO", "<#= modelPageName #>", null, FormMethod.Post, new { id = "frmItemEdit" }))
+{
+    @Html.AntiForgeryToken()
+    <input type="hidden" id="Name" name="Name" value="">
+}
+
+<# 
+  string modelname =  "asd";
+  string saltModelName = modelPageName;
+  string tableName =  "tbl" + modelPageName + "List";
+#>
+
+<# var managerIndex = new Manager(Host, GenerationEnvironment, true) { OutputPath = @"C:\Projects Own\WorkArea\MVCApp\Scripts\" + modelPageName}; #>
+<# managerIndex.StartBlock(modelPageNameLower  + "_index.js"); #>
+
+// INDEX SCRIPTS
+var <#= tableName #>;
+$(document).ready(function () {
+    <#= tableName #> = $("#<#= tableName #>").DataTable({
+        columnDefs: [
+            {
+                className: 'control',
+                orderable: false,
+                targets: 0
+            }
+        ],
+		dom: 'Blfrtip',
+        buttons: [
+            {
+                extend: 'copy',
+                exportOptions: {
+                    columns: ':visible'
+					// TODO aşağıdaki şekilde ayarla.
+					//columns: [1, 2, 3]
+                },
+                text: '<i class="glyphicon glyphicon-file"></i>'
+            },
+            {
+                extend: 'print',
+                exportOptions: {
+                    columns: ':visible'
+					// TODO aşağıdaki şekilde ayarla.
+					//columns: [1, 2, 3]
+                },
+                text: '<i class="glyphicon glyphicon-print"></i>'
+            },
+            {
+                extend: 'excelHtml5',
+                exportOptions: {
+                    columns: ':visible'
+					// TODO aşağıdaki şekilde ayarla.
+					//columns: [1, 2, 3]
+                },
+                text: '<i class="glyphicon glyphicon-th"></i>'
+            },
+            {
+                extend: 'pdf',
+                exportOptions: {
+                    columns: ':visible'
+					// TODO aşağıdaki şekilde ayarla.
+					//columns: [1, 2, 3]
+                },
+                text: '<i class="glyphicon glyphicon-book"></i>'
+            },
+            {
+                extend: 'colvis',
+                columns: ':gt(0)',
+                text: '<i class="glyphicon glyphicon-th-list"></i>'
+            }
+        ],
+        "serverSide": true,
+        "ajax": {
+            "type": "POST",
+            "url": "<#= modelPageName #>/GetAll",
+            "contentType": 'application/json; charset=utf-8',
+            'data': function (data) {
+
+				// TODO filtreler doldurulmalı. 
+				//var filterArray = [$('#FilAdi').val(), $('#FilAdiEn').val(), $('#FilAdiRu').val()];
+				//data.filterArray = filterArray;
+
+                if ($('#tbl<#= modelPageName #>ListSelect option:selected').val())
+                    data.active = $('#tbl<#= modelPageName #>ListSelect option:selected').val();
+                else if ($('#tbl<#= modelPageName #>ListSelect option:selected').val() != '')
+                    data.active = true;
+
+			    data.pagingcount = $('#<#= tableName #>_length option:selected').val();
+
+                return data = JSON.stringify(data);
+            },
+            error: function (jqXHR, errorThrown) {
+                
+            }
+        },
+        "language": datatableGlobals.language ,
+        "processing": true,
+        "paging": true,
+        "deferRender": true,
+        "columns": [{
+           "data": "Id",
+           "sortable": false,
+           "visible": false,
+           "render": function (data, type, row) {
+               return '';
+           }
+       },
+		<#= columns #>
+		   {
+           "data": "AktifMi",
+           "render": function (data, type, row) {
+                if (data == true) {
+                    return '<i class="glyphicon glyphicon-ok-circle" style="color:#337ab7"></i>';
+                } else {
+                    return '<i class="glyphicon glyphicon-ban-circle" style="color:red"></i>';
+                }
+           },
+       },
+       {
+           "data": "Id",
+           "sortable": false,
+           "render": function (data, type, row) {
+               
+			   var buttons = "";
+
+			   if(Yetki.<#= modelPageNameLower #>.Duzenleme)
+               {
+				 buttons += ' <button type="button" class="btn btn-primary glyphicon glyphicon-pencil" title="' + stringDuzelt(globals.DuzenleButonTooltip) + '" onClick="Edit(' + data + ');"><i class="icon-file-eye"></i></button>';
+               }
+
+			   if(Yetki.<#= modelPageNameLower #>.Silme && row.AktifMi)
+               {
+				 buttons += ' <button type="button" class="btn btn-default glyphicon glyphicon-remove" title="' + stringDuzelt(globals.SilButonTooltip) + '"  style="color:red" onClick="Passive(' + data + ');"></button>';
+			   }			  
+
+               return buttons;
+           },
+       }
+        ],
+		"initComplete": function (settings, json) {
+            $('#<#= tableName #>_filter').hide();
+            $('#<#= tableName #>').removeAttr('style');
+        },
+        "order": [0, "asc"]
+    });
+
+    $('.datatable-pagination').DataTable({
+        pagingType: "simple",
+        language: {
+            paginate: { 'next': 'Next &rarr;', 'previous': '&larr; Prev' }
+        }
+    });
+
+    $('.dataTables_filter input[type=search]').attr('placeholder', 'Ara...');
+
+});
+
+function RefreshTable() {
+    <#= tableName #>.ajax.reload(null, true);
+}
+
+function FiltreTemizle() {
+    //$('#FilAdi').val("");
+    //$('#FilAdiEn').val("");
+    //$('#FilAdiRu').val("");
+    RefreshTable();
+}
+
+function showCreateModal() {
+    //$('[name=SirketId]').val("").change();
+    $('#mdlSave<#= modelPageName #>').modal("show");
+}
+
+function Passive(Id) {
+	var token = $('[name=__RequestVerificationToken]').val();
+
+    $.ajax({
+        type: $('#frmItemPassive').attr('method'),
+        url: $('#frmItemPassive').attr('action'),
+        data: { Id: Id, __RequestVerificationToken: token },
+        dataType: "json",
+        success: function (result) {
+            if (result && result.IsSuccess) {
+                core.util.showSuccessMessageBox(globals.bilgiBaslik, globals.bilgiText);
+                RefreshTable();
+            }
+            else {
+                if (result.Message != "" && result.Message != undefined && result.Message != null)
+                    core.util.showErrorMessageBox(globals.hataBaslik, result.Message);
+            }
+        },
+        error: function (jqXHR, erorThrown) {
+            core.util.showErrorMessageBox(globals.hataBaslik, "XqXHR : " + jqxhr.status + "erorThrown : " + erorThrown);
+        }
+    });
+}
+	
+function Delete(Id) {
+	var token = $('[name=__RequestVerificationToken]').val();
+	 $.ajax({
+			type: $('#frmItemDelete').attr('method'),
+			url: $('#frmItemDelete').attr('action'),
+			data: { Id: Id, __RequestVerificationToken: token },
+			dataType: "json",
+			success: function (result) {
+				if (result && result.IsSuccess) {
+					core.util.showSuccessMessageBox(globals.bilgiBaslik, globals.bilgiText);
+					RefreshTable();
+				}
+				else {
+					if (result.Message != "" && result.Message != undefined && result.Message != null)
+						core.util.showErrorMessageBox(globals.hataBaslik, result.Message);
+				}
+			},
+			error: function (jqXHR, erorThrown) {
+				core.util.showErrorMessageBox(globals.hataBaslik, "XqXHR : " + jqxhr.status + "erorThrown : " + erorThrown);
+			}
+		});
+}
+
+
+<# managerIndex.EndBlock(); #>
+<# managerIndex.Process(true); #>
+
+<# var managerCreate = new Manager(Host, GenerationEnvironment, true) { OutputPath = @"C:\Projects Own\WorkArea\MVCApp\Scripts\" + modelPageName }; #>
+<# managerCreate.StartBlock(modelPageNameLower  + "_create.js"); #>
+
+//CREATE SCRIPTS
+$(document).ready(function () {
+    //Filling Combos Örneği
+    //LoadSirketler();
+
+	  $("#frmSave<#= modelPageName #>").submit(function (event) {
+        //if ($('#frmSave<#= modelPageName #>').valid()) {
+            Save();
+            return false;
+        //}
+    });
+});
+
+function Save() {
+    $.ajax({
+        type: $('#frmSave<#= modelPageName #>').attr('method'),
+        url: $('#frmSave<#= modelPageName #>').attr('action'),
+        data: $('#frmSave<#= modelPageName #>').serialize(),
+        dataType: "json",
+        success: function (result) {
+            if (result && result.IsSuccess) {
+                $("#frmSave<#= modelPageName #>")[0].reset();
+                $('#mdlSave<#= modelPageName #>').modal('hide');
+                core.util.showSuccessMessageBox(globals.bilgiBaslik, globals.bilgiText);
+                RefreshTable();
+            }
+            else {
+                //$('#mdlSave<#= modelPageName #>').modal('hide');
+                if (result.Message != "" && result.Message != undefined && result.Message != null)
+                    core.util.showErrorMessageBox(globals.hataBaslik, result.Message);
+            }
+        },
+        error: function (jqXHR, erorThrown) {
+            $('#mdlSave<#= modelPageName #>').modal('hide');
+            ShowErrorMessage("Error", erorThrown);
+            core.util.showErrorMessageBox(globals.hataBaslik, "XqXHR : " + jqxhr.status + "erorThrown : " + erorThrown);
+        }
+    });
+}
+
+<# managerCreate.EndBlock(); #>
+<# managerCreate.Process(true); #>
+
+<# var managerEdit = new Manager(Host, GenerationEnvironment, true) { OutputPath = @"C:\Projects Own\WorkArea\MVCApp\Scripts\" + modelPageName }; #>
+<# managerEdit.StartBlock(modelPageNameLower + "_edit.js"); #>
+
+//EDIT SCRIPTS
+$(document).ready(function () {
+
+	 $("#frmItemUpdate").submit(function (event) {
+        //if ($('#frmItemUpdate').valid()) {
+            Update();
+            return false;
+        //}
+    });
+});
+
+function Update() {
+    $.ajax({
+        type: $('#frmItemUpdate').attr('method'),
+        url: $('#frmItemUpdate').attr('action'),
+        data: $('#frmItemUpdate').serialize(),
+        dataType: "json",
+        success: function (result) {
+            if (result && result.IsSuccess) {
+                $("#frmItemUpdate")[0].reset();
+                $('#mdlEdit<#= modelPageName #>').modal('hide');
+                core.util.showSuccessMessageBox(globals.bilgiBaslik, globals.bilgiText);
+                RefreshTable();
+            }
+            else {
+                $('#mdlEditRol').modal('hide');
+                if (result.Message != "" && result.Message != undefined && result.Message != null)
+                    core.util.showErrorMessageBox(globals.hataBaslik, result.Message);
+            }
+        },
+        error: function (jqXHR, erorThrown) {
+            $('#mdlEdit<#= modelPageName #>').modal('hide');
+            core.util.showErrorMessageBox(globals.hataBaslik, "XqXHR : " + jqxhr.status + "erorThrown : " + erorThrown);
+        }
+    });
+}
+
+function Edit(id) {
+
+    var token = $('[name=__RequestVerificationToken]').val();
+
+    $.ajax({
+        type: $('#frmItemEdit').attr('method'),
+        url: $('#frmItemEdit').attr('action'),
+        data: { Id: id, __RequestVerificationToken: token },
+        dataType: "json",
+        success: function (result) {
+            if (result && result.IsSuccess) {
+
+			    //TODO
+                //$('#frmItemUpdate [name=Id]').val(result.Data.Id);
+                //$('#frmItemUpdate [name=Adi]').val(result.Data.Adi);
+                //$('#frmItemUpdate [name=AdiEn]').val(result.Data.AdiEn);
+                //$('#frmItemUpdate [name=AdiRu]').val(result.Data.AdiRu);
+
+                if (result.Data.AktifMi == true) {
+                    $('[name=AktifMi]').prop('checked', true);
+                    $('#AktifMi').val(true);
+                    $.uniform.update();
+
+                } else {
+                    $('[name=AktifMi]').prop('checked', false);
+                    $('#AktifMi').val(false);
+                    $.uniform.update();
+                }
+
+                //Lookups
+				//if (result.Data.SirketId)
+					//LoadSirketlerEdit(result.Data.SirketId);
+
+                $('#mdlEdit<#= modelPageName #>').modal('show');
+            } else {
+                if (result.Message != "" && result.Message != undefined && result.Message != null)
+                    core.util.showErrorMessageBox(globals.hataBaslik, result.Message);
+            }
+        },
+        error: function (jqXHR, erorThrown) {
+            core.util.showErrorMessageBox(globals.hataBaslik, "XqXHR : " + jqxhr.status + "erorThrown : " + erorThrown);
+        }
+    });
+}
+
+$("[name=AktifMi]").change(function () {
+    if (this.checked) {
+        $('#AktifMi').val(true);
+    } else {
+        $('#AktifMi').val(false);
+    }
+});
+
+<# managerEdit.EndBlock(); #>
+<# managerEdit.Process(true); #>

@@ -1,0 +1,507 @@
+﻿<#@ template language="C#" HostSpecific="True" #>
+<#@ output extension=".cshtml" #>
+<#@ include file="Imports.include.t4" #>
+@model <#=  ViewDataTypeName  #>
+
+<# 
+	string columns = "";
+	string filterColumns = "";
+	string modelRootNamespace = "TTPOL.Common";
+	string moduleName = ViewDataTypeName.Replace(modelRootNamespace + ".", "");
+	
+	moduleName = (moduleName.IndexOf('.') > 0) ? moduleName.Split('.')[0] : "";
+
+	string modelPageName = (ViewDataTypeName.Split('.').Last().Replace("Simple","").Replace("View","").Replace("Filter",""));
+	
+	string modelPageNameFullLower = (!string.IsNullOrEmpty(moduleName) ? moduleName.ToLowerInvariant() + "_" : "") + (ViewDataTypeName.Split('.').Last().Replace("Simple","").Replace("View","").Replace("Filter","")).ToLowerInvariant();
+
+	IList<string> excludedFields = new List<string>() {"Active", "_tag", "IslemYapan", "IslemTarihi", "Kaydeden", "KaydedilmeTarihi"}; //, "GoruntulenmeDurumu", "KilitleyenKisi" };
+ #>
+
+<#
+// The following chained if-statement outputs the file header code and markup for a partial view, a view using a layout page, or a regular view.
+if(IsPartialView) {
+#>
+
+<#
+} else if(IsLayoutPageSelected) {
+#>
+
+@{
+    ViewBag.Title = "<#= ViewName#>";
+<#
+if (!String.IsNullOrEmpty(LayoutPageFile)) {
+#>
+    Layout = "<#= LayoutPageFile#>";
+<#
+}
+#>
+}
+
+<h2><#= ViewName#></h2>
+
+<#
+} else {
+#>
+@section Scripts {
+
+<script>
+    var pageContext = pageContext || {};	
+    pageContext.<#= modelPageNameFullLower #> =   pageContext.<#= modelPageNameFullLower #> || {};
+    pageContext.<#= modelPageNameFullLower #>.CanSave = "@ViewBag.Permission.CanSave.ToString().ToLower()" =="true" ? true : false;
+    pageContext.<#= modelPageNameFullLower #>.CanDelete = "@ViewBag.Permission.CanDelete.ToString().ToLower()" =="true" ? true : false;
+    pageContext.<#= modelPageNameFullLower #>.CanEdit = "@ViewBag.Permission.CanEdit.ToString().ToLower()" =="true" ? true : false;
+</script>
+
+    <script src="~/Scripts/pages/<#= modelPageNameFullLower #>_index.js"></script>
+    <script src="~/Scripts/pages/<#= modelPageNameFullLower #>_create.js"></script>
+    <script src="~/Scripts/pages/<#= modelPageNameFullLower #>_edit.js"></script>
+    <script src="~/Scripts/pages/<#= modelPageNameFullLower #>_filter.js"></script>
+}
+<!-- Main content -->
+<div class="content-wrapper">
+    <!-- Page header -->
+    <div class="page-header">
+        <div class="page-header-content">
+            <div class="page-title">
+                <h4><i class="icon-arrow-left52 position-left"></i> <span class="text-semibold"><#= modelPageName #></span> - Listesi</h4>
+            </div>
+        </div>
+        <div class="breadcrumb-line">
+            <ul class="breadcrumb">
+                <li><a href="@Url.Action("Index", "Home")"><i class="icon-home2 position-left"></i> AnaSayfa</a></li>
+                <li class="active"><#= modelPageName #> Listesi</li>
+            </ul>
+        </div>
+    </div>
+    <!-- /page header -->
+    <!-- Content area -->
+    <div class="content">
+        @Html.Partial("Filter")
+
+        <div class="panel panel-flat">
+            <div class="panel-heading">
+                <h5 class="panel-title"><#= modelPageName #> Listesi</h5>
+                <div class="heading-elements">
+                    <ul class="icons-list"></ul>
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="form-group">
+                    <div class="col-md-2">
+                        <select id="tbl<#= modelPageName #>ListStatu" class="select" onchange="change_tbl<#= modelPageName #>List_Statu();">
+                            <option value="true" selected="selected">Aktif</option>
+                            <option value="false">Pasif</option>
+                            <option value="">Tümü</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-8">
+					 @if (ViewBag.Permission.CanSave)
+					 {
+                        <button type="button" class="btn btn-primary btn-labeled" data-toggle="modal" data-target="#mdlSave<#= modelPageName #>" onclick="onShowCreateForm();"><b><i class="icon-plus2"></i></b> Ekle</button>
+                     }
+					</div>
+                </div>
+
+            </div>
+            <table id="tbl<#= modelPageName #>List" class="table datatable-basic" data-request-url="@Url.Action("GetAll", "<#= modelPageName #>")">
+                <thead>
+                    <tr>
+                        <th></th>
+						<#
+IEnumerable<PropertyMetadata> properties = ModelMetadata.Properties;
+foreach (PropertyMetadata property in properties) {
+    if (property.Scaffold && !property.IsPrimaryKey && !property.IsForeignKey) {
+#>
+<#
+        // We do not want to show any association properties for which there is
+        // no associated foreign key.
+        if (property.IsAssociation && GetRelatedModelMetadata(property) == null) {
+            continue;
+        }
+		if(!excludedFields.Contains(GetValueExpression(property).ToString()))
+        {
+			columns += "{ \"data\": \"" + GetValueExpression(property) + "\" },\n";
+			filterColumns += "{ \"id\": \"" + GetValueExpression(property) + "\" ,\"field\": \"" + GetValueExpression(property) + "\" ,\"label\": \"" + GetValueExpression(property) + "\" ,\"type\": 'string'  ,\"input\": 'text' , \"operators\": ['equal', 'not_equal', 'begins_with', 'contains', 'not_contains', 'ends_with']},\n";
+
+#>
+						   <th>@Html.LabelFor(model => model.<#= GetValueExpression(property) #>, htmlAttributes: new { @class = "" })</th>
+<#
+        }
+    }
+}
+#>                         
+							<th>@Html.LabelFor(model => model.IslemYapan, htmlAttributes: new { @class = "" })</th>
+							<th>@Html.LabelFor(model => model.IslemTarihi, htmlAttributes: new { @class = "" })</th>
+							<th>@Html.LabelFor(model => model.Kaydeden, htmlAttributes: new { @class = "" })</th>
+							<th>@Html.LabelFor(model => model.KaydedilmeTarihi, htmlAttributes: new { @class = "" })</th>
+							<th>@Html.LabelFor(model => model.Active, htmlAttributes: new { @class = "" })</th>
+							<th class="text-center"></th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+    <!-- /content area -->
+</div>
+<!-- /main content -->
+@Html.Partial("Create") 
+<div id="itemView"></div>
+@using (Html.BeginForm("Edit", "<#= modelPageName #>", null, FormMethod.Post, new { id = "frmItemEdit" }))
+{
+    @Html.AntiForgeryToken()
+    <input type="hidden" id="Id" name="Id" value="">
+} 
+
+@using (Html.BeginForm("Delete", "<#= modelPageName #>", null, FormMethod.Post, new { id = "frmItemDelete" }))
+{
+    @Html.AntiForgeryToken()
+    <input type="hidden" id="Id" name="Id" value="">
+}
+
+@using (Html.BeginForm("GetLookup", "<#= modelPageName #>", null, FormMethod.Post, new { id = "frmGetLookUp<#= modelPageName #>" }))
+{
+    @Html.AntiForgeryToken()
+    <input type="hidden" id="Id" name="Id" value="">
+}
+
+@using (Html.BeginForm("GetLookupByName", "<#= modelPageName #>", null, FormMethod.Post, new { id = "frmGetLookUp<#= modelPageName #>ByName" }))
+{
+    @Html.AntiForgeryToken()
+    <input type="hidden" id="Name" name="Name" value="">
+}
+
+<#
+}
+#>
+<#@ include file="ModelMetadataFunctions.cs.include.t4" #>
+
+<#@ include file=".\Manager.ttinclude" #>
+
+<# var manager = Manager.Create(Host, GenerationEnvironment); #>
+
+<# 
+  string modelname =  modelPageNameFullLower;
+  string saltModelName = modelPageName;
+  string tableName =  "tbl" + modelPageName + "List";
+#>
+<# manager.StartNewFile(@"C:\Projects\TT_VITTA\TTPOL_main\TTPOL.Web\Scripts\pages\" + modelPageNameFullLower +"_index.js"); #>
+
+var <#= tableName #>;
+
+$(document).ready(function () {
+    $('#<#= tableName #>Statu').select2();
+    <#= tableName #> = $("#<#= tableName #>").DataTable({
+        responsive: {
+            details: {
+                type: 'column',
+                target: 'tr'
+            }
+        },
+        columnDefs: [
+            {
+                className: 'control',
+                orderable: false,
+                targets: 0
+            }
+        ],
+        "serverSide": true,
+        "ajax": {
+            "type": "POST",
+            "url": $("#<#= tableName #>").data('request-url'),
+            "contentType": 'application/json; charset=utf-8',
+            'data': function (data) {
+                data.query = $('[name=<#= tableName #>FilterBuilder-Result]').val();
+
+                if ($('#<#= tableName #>Statu option:selected').val())
+                    data.active = $('#<#= tableName #>Statu option:selected').val();
+                else if ($('#<#= tableName #>Statu option:selected').val() != '')
+                    data.active = true;
+
+                return data = JSON.stringify(data);
+            },
+            error: function (jqXHR, errorThrown) {
+                innova.core.util.showErrorMessageBox(jqXHR.responseJSON.Errors);
+            }
+        },
+        "language": datatableLanguage,
+        "processing": true,
+        "paging": true,
+        "deferRender": true,
+        "columns": [{
+           "data": "Id",
+           "sortable": false,
+           "visible": false,
+           "render": function (data, type, row) {
+               return '';
+           }
+       },
+		<#= columns #>
+		
+		   { "data": "IslemYapan" },
+		   { "data": "IslemTarihi" },
+		   {"data": "Kaydeden"},
+		   {"data": "KaydedilmeTarihi"},
+		   {
+           "data": "Active",
+           "render": function (data, type, row) {
+               if (data == true) {
+                   return '<span class="label label-success">AKTİF</span>';
+               } else {
+                   return '<span class="label label-danger">PASİF</span>';
+               }
+           },
+       },
+       {
+           "data": "Id",
+           "sortable": false,
+           "render": function (data, type, row) {
+               var buttons = '<p>' ;
+			   if(pageContext.<#= modelPageNameFullLower #>.CanEdit)
+               {
+				 buttons += ' <button type="button" class="btn btn-primary btn-icon" title="Düzenle"  onClick="Edit<#= saltModelName #>(' + data + ');"><i class="icon-file-eye"></i></button>' ;
+               }
+
+			   if(pageContext.<#= modelPageNameFullLower #>.CanDelete && row.Active)
+               {
+				 buttons += ' <button type="button" class="btn btn-default btn-icon"  title="Sil"  onClick="Delete<#= saltModelName #>(' + data + ');"><i class="icon-diff-removed"></i></button>';
+			   }			  
+
+               buttons += ' </p>';
+               return buttons;
+           },
+       }
+        ],
+        "order": [0, "asc"]
+
+    });
+
+    $('.datatable-pagination').DataTable({
+        pagingType: "simple",
+        language: {
+            paginate: { 'next': 'Next &rarr;', 'previous': '&larr; Prev' }
+        }
+    });
+
+    $('.dataTables_filter input[type=search]').attr('placeholder', 'Ara...');
+
+    $('.dataTables_length select').select2({
+        minimumResultsForSearch: Infinity,
+        width: 'auto'
+    });
+});
+	
+function show<#= saltModelName #>TableLoadingAnimation() {
+    $("#<#= tableName #>").block({
+        message: '<i class="icon-spinner9 icon-3x  spinner"></i>',
+        overlayCSS: {
+            backgroundColor: '#fff',
+            opacity: 0.8,
+            cursor: 'wait'
+        },
+        css: {
+            border: 0,
+            padding: 0,
+            backgroundColor: 'none'
+        }
+    });
+}
+
+function change_<#= tableName #>_Statu() {
+    refreshTable<#= saltModelName #>ListStatu();
+}
+
+function refreshTable<#= saltModelName #>ListStatu() {
+    <#= tableName #>.ajax.reload(null, true);
+}
+
+function hide<#= saltModelName #>TableLoadingAnimation() {
+    $("#<#= tableName #>").unblock();
+}
+
+function Delete<#= saltModelName #>(Id) {
+    show<#= saltModelName #>TableLoadingAnimation();
+    $('#frmItemDelete [name=Id]').val(Id);
+    jQuery.ajax({
+        type: "POST",
+        url: $('#frmItemDelete').attr('action'),
+        data: $('#frmItemDelete').serialize(),
+        success: function (result) {
+            hide<#= saltModelName #>TableLoadingAnimation();
+            if (result && result.IsSuccess) {
+                refreshTable<#= saltModelName #>ListStatu();
+            }
+        },
+        error: function (jqXHR, errorThrown) {
+            hide<#= saltModelName #>TableLoadingAnimation();
+        }
+    });
+}
+
+function Edit<#= saltModelName #>(Id) {
+    show<#= saltModelName #>TableLoadingAnimation();
+    $('#frmItemEdit [name=Id]').val(Id);
+    $.superLoad({
+        type: 'POST',
+        url: $('#frmItemEdit').attr('action'),
+        data: $('#frmItemEdit').serialize(),
+        dataType: 'html',
+        success: function () {
+            hide<#= saltModelName #>TableLoadingAnimation();
+            editFormShowed();
+            $('#mdlEdit<#= saltModelName #>').modal('show');
+        },
+        error: function (xhr, ajaxOptions, thrownError) {
+            hide<#= saltModelName #>TableLoadingAnimation();
+        }
+    });
+}
+
+<# manager.EndBlock(); #>
+
+<# manager.StartNewFile(@"C:\Projects\TT_VITTA\TTPOL_main\TTPOL.Web\Scripts\pages\" + modelPageNameFullLower +"_create.js"); #>
+
+$(document).ready(function () {
+    $(".switch").bootstrapSwitch();
+    $('#frmSave<#= saltModelName #> input[type="checkbox"]').on('switchChange.bootstrapSwitch', function (event, state) {
+        this.value = state;
+    });
+    $("#frmSave<#= saltModelName #>").data("validator").settings.submitHandler = function (form) {
+        showFrmSave<#= saltModelName #>LoadingAnimation();
+        $.ajax({
+            dataType: "json",
+            url: form.action,
+            type: form.method,
+            data: $('#frmSave<#= saltModelName #>').serialize(),
+            success: function (result) {
+                hideFrmSave<#= saltModelName #>LoadingAnimation();
+                if (result && result.IsSuccess) {
+                    innova.core.util.showSuccessMessageBox(innova.core.stringresources.SuccessMessageText);
+                    refreshTable<#= saltModelName #>ListStatu();
+                    $('#mdlSave<#= saltModelName #>').modal('hide');
+                }
+                else {
+                    $('#mdlSave<#= saltModelName #>').modal('hide');
+                    innova.core.util.showErrorMessageBox(result.Errors);
+                }
+            },
+            error: function (jqXHR, erorThrown) {			
+				$('#mdlSave<#= saltModelName #>').modal('hide');
+                hideFrmSave<#= saltModelName #>LoadingAnimation();
+                innova.core.util.showErrorMessageBox(innova.core.stringresources.ErrorMessageText);
+            }
+        });
+    };
+});
+
+function onShowCreateForm() {
+    $('#frmSave<#= saltModelName #>').formReset();
+    $('#frmSave<#= saltModelName #>').clearValidation();
+}
+
+function showFrmSave<#= saltModelName #>LoadingAnimation() {
+    $(".modal-content").block({
+        message: '<i class="icon-spinner9 icon-3x  spinner"></i>',
+        overlayCSS: {
+            backgroundColor: '#fff',
+            opacity: 0.8,
+            cursor: 'wait'
+        },
+        css: {
+            border: 0,
+            padding: 0,
+            backgroundColor: 'none'
+        }
+    });
+}
+
+function hideFrmSave<#= saltModelName #>LoadingAnimation() {
+    $(".modal-content").unblock();
+}
+
+<# manager.EndBlock(); #>
+
+<# manager.StartNewFile(@"C:\Projects\TT_VITTA\TTPOL_main\TTPOL.Web\Scripts\pages\" + modelPageNameFullLower +"_edit.js"); #>
+
+function editFormShowed() {
+    $('#frmEdit<#= saltModelName #>').updateValidation();
+    $(".switch").bootstrapSwitch();
+    $('#frmEdit<#= saltModelName #> input[type="checkbox"]').on('switchChange.bootstrapSwitch', function (event, state) {
+        this.value = state;
+    });
+    $("#frmEdit<#= saltModelName #>").data("validator").settings.submitHandler = function (form) {
+        showFrmEdit<#= saltModelName #>LoadingAnimation();
+        $.ajax({
+            dataType: "json",
+            url: form.action,
+            type: form.method,
+            data: $('#frmEdit<#= saltModelName #>').serialize(),
+            success: function (result) {
+                hideFrmEdit<#= saltModelName #>LoadingAnimation();
+                if (result && result.IsSuccess) {
+                    innova.core.util.showSuccessMessageBox(innova.core.stringresources.SuccessMessageTitle);
+                    refreshTable<#= saltModelName #>ListStatu();
+                    $('#mdlEdit<#= saltModelName #>').modal('hide');
+                }
+                else {
+				    $('#mdlEdit<#= saltModelName #>').modal('hide');
+                    innova.core.util.showErrorMessageBox(result.Errors);
+                }
+            },
+            error: function (jqXHR, erorThrown) {
+				$('#mdlEdit<#= saltModelName #>').modal('hide');
+                hideFrmEdit<#= saltModelName #>LoadingAnimation();
+                innova.core.util.showErrorMessageBox(jqXHR.responseJSON.Errors);
+            }
+        });
+    };
+}
+
+function showFrmEdit<#= saltModelName #>LoadingAnimation() {
+    $(".modal-content").block({
+        message: '<i class="icon-spinner9 icon-3x  spinner"></i>',
+        overlayCSS: {
+            backgroundColor: '#fff',
+            opacity: 0.8,
+            cursor: 'wait'
+        },
+        css: {
+            border: 0,
+            padding: 0,
+            backgroundColor: 'none'
+        }
+    });
+}
+
+function hideFrmEdit<#= saltModelName #>LoadingAnimation() {
+    $(".modal-content").unblock();
+}
+
+<# manager.EndBlock(); #>
+
+<# manager.StartNewFile(@"C:\Projects\TT_VITTA\TTPOL_main\TTPOL.Web\Scripts\pages\" + modelPageNameFullLower +"_filter.js"); #>
+
+$(document).ready(function () {
+    $('#<#= tableName #>FilterBuilder').queryBuilder({
+        filters: [		
+		<#= filterColumns #>
+        ]
+    });
+});
+function regenerateQuery() {
+    tbl<#= saltModelName #>List_ReGenerateQuery();
+} 
+function tbl<#= saltModelName #>List_ReGenerateQuery() {
+    var result = $('#<#= tableName #>FilterBuilder').queryBuilder('getRules');
+    var query = JSON.stringify(result, undefined, 2);
+    $('[name=<#= tableName #>FilterBuilder-Result]').val(query);
+    refreshTable<#= saltModelName #>ListStatu();
+}
+
+function loadSearchControls() {
+}
+
+<# manager.EndBlock(); #>
+
+<# manager.Process(true); #>

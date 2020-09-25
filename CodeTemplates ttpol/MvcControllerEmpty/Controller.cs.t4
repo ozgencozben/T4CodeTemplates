@@ -1,0 +1,193 @@
+﻿<#@ template language="C#" HostSpecific="True" #>
+<#@ output extension="cs" #>
+<#@ import namespace="System" #>
+<#@ parameter type="System.String" name="ControllerName" #>
+<#@ parameter type="System.String" name="ControllerRootName" #>
+<#@ parameter type="System.String" name="Namespace" #>
+<#@ parameter type="System.String" name="AreaName" #>
+<#
+string routePrefix;
+if (String.IsNullOrEmpty(AreaName)) 
+{
+    routePrefix = ControllerRootName;
+}
+else
+{
+    routePrefix = AreaName + "/" + ControllerRootName;
+}
+#>
+using Innova.Core.Common;
+using Innova.Core.Common.Exceptions;
+using Innova.Core.Web.Framework;
+using Innova.Core.Web.Framework.Attributes;
+using Innova.Core.Web.Framework.Controllers;
+using System;
+using System.Web.Mvc;
+using System.Web.Routing;
+using TTPOL.Business;
+using TTPOL.Business.Custom;
+using TTPOL.Common;
+using TTPOL.Common.Custom;
+<# 
+	string ModelPrefix = ControllerRootName.TrimEnd('s');
+	string ControllerNameFirstCharLower = (Char.ToLowerInvariant(ModelPrefix[0]) + ModelPrefix.Substring(1)).TrimEnd('s');
+ #>
+// <#= routePrefix #>
+namespace <#= Namespace #>
+{
+    public class <#= ControllerName #> : BaseController
+    {
+		#region [   Fields   ]
+        protected <#= ModelPrefix #>BusinessService m_<#= ControllerNameFirstCharLower #>BusinessService;
+        #endregion [   Fields   ]
+
+        protected override void Initialize(RequestContext requestContext)
+        {
+            this.m_<#= ControllerNameFirstCharLower #>BusinessService = new <#= ModelPrefix #>BusinessService();
+            base.Initialize(requestContext);
+        }
+		 
+		[PermissionRequired(SecurityKeys.*)]
+		[SetViewBagPropertiesFromContext(SecurityKeys.*)]
+        public ActionResult Index()
+        {
+            return View();
+        }
+
+		[HttpPost]
+        //[ValidateAntiForgeryToken]
+        [Innova.Core.Web.Framework.Attributes.NHibernateSession]		
+		[PermissionRequired(SecurityKeys.*)]
+        public ActionResult GetAll(DataTableParameters dataTable, string query, bool? active)
+        {
+            PagedDataList<<#= ModelPrefix #>View> datas = new PagedDataList<<#= ModelPrefix #>View>();
+            QueryParser queryParser = null;
+            <#= ModelPrefix #>Filter filter = new <#= ModelPrefix #>Filter();
+            filter.Active = active;
+
+            if (dataTable.Search != null && !string.IsNullOrWhiteSpace(dataTable.Search.Value))
+            {
+                filter.Name = new StringFilter();
+                filter.Name.FilterType = Innova.Core.Common.Enumerations.StringFilterType.StartsWith;
+                filter.Name.Text = dataTable.Search.Value;
+            }
+
+            if (!string.IsNullOrWhiteSpace(query) && query.Trim() != "{}")
+            {
+                queryParser = new QueryParser();
+				// TTPOL.Common.Custom.FilterColumnsConstants.<#= ModelPrefix #>_COLOUMNS
+                queryParser.Parse(query, null);
+            }
+
+            string OrderBy = dataTable.SortOrder;
+            bool Ascending = true;
+            if (OrderBy.Contains("DESC"))
+            {
+                Ascending = false;
+                OrderBy = OrderBy.Replace("DESC", string.Empty).Trim();
+            }
+
+            datas = this.m_<#= ControllerNameFirstCharLower #>BusinessService.GetAllViewPagedWithQueryParser(filter, dataTable.Start / dataTable.Length, dataTable.Length, OrderBy, Ascending, queryParser);
+
+            DataTableResult<<#= ModelPrefix #>View> result = new DataTableResult<<#= ModelPrefix #>View>
+            {
+                draw = dataTable.Draw,
+                data = datas.ResultSet,
+                recordsFiltered = datas.Count,
+                recordsTotal = datas.ResultSet.Count
+            };
+            return Json(result);
+        }
+
+		[HttpPost]
+        [ValidateAntiForgeryToken]
+        [NHibernateSession]
+        [ValidateOnlyIncomingValues]		
+		[PermissionRequired(SecurityKeys.*)]
+        public JsonResult Save(<#= ModelPrefix #>Simple model)
+        {
+            FormData m_retValue = new FormData();
+            if (ModelState.IsValid)
+            {
+                this.m_<#= ControllerNameFirstCharLower #>BusinessService.Save(model);
+                m_retValue.IsSuccess = true;
+            }
+            else
+            {
+                throw new InnovaException("Kontoller uyuşmuyor.");
+            }
+            return Json(m_retValue, JsonRequestBehavior.AllowGet);
+        }
+
+		[HttpPost]
+        [ValidateAntiForgeryToken]
+        [NHibernateSession]
+        [ValidateOnlyIncomingValues]		
+		[PermissionRequired(SecurityKeys.*)]
+        public JsonResult Delete([Bind(Include = "Id")]<#= ModelPrefix #>Simple model)
+        {
+            FormData m_retValue = new FormData();
+            if (ModelState.IsValid)
+            {
+                this.m_<#= ControllerNameFirstCharLower #>BusinessService.DeActive(model.Id);
+                m_retValue.IsSuccess = true;
+            }
+            else
+            {
+                throw new InnovaException("Kontoller uyuşmuyor.");
+            }
+            return Json(m_retValue, JsonRequestBehavior.AllowGet);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [NHibernateSession]
+        [ValidateOnlyIncomingValues]		
+		[PermissionRequired(SecurityKeys.*)]
+        public InnovaResult Edit([Bind(Include = "Id")]<#= ModelPrefix #>View model)
+        {
+            model = this.m_<#= ControllerNameFirstCharLower #>BusinessService.GetView(model.Id);
+
+            return new InnovaResult(new InnovaAjaxContent("#itemView",
+                InnovaCommand.Update, () => { return PartialView("Edit", model); }));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [NHibernateSession]
+        public JsonResult GetLookup()
+        {
+            FormData m_retValue = new FormData();
+            <#= ModelPrefix #>Filter filter = new <#= ModelPrefix #>Filter();
+            filter.Active = true;
+            m_retValue.Data = this.m_<#= ControllerNameFirstCharLower #>BusinessService.GetAll(filter, string.Empty, false);
+            m_retValue.IsSuccess = true;
+            return Json(m_retValue, JsonRequestBehavior.AllowGet);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [NHibernateSession]
+        [ValidateOnlyIncomingValues]
+        public JsonResult GetLookupByName([Bind(Include = "Name")]<#= ModelPrefix #>Simple model)
+        {
+            FormData m_retValue = new FormData();
+            if (ModelState.IsValid)
+            {
+                <#= ModelPrefix #>Filter filter = new <#= ModelPrefix #>Filter();
+                filter.Active = true;
+                filter.Name = new StringFilter();
+                filter.Name.FilterType = Innova.Core.Common.Enumerations.StringFilterType.StartsWith;
+                filter.Name.Text = model.Name;
+
+                m_retValue.Data = this.m_<#= ControllerNameFirstCharLower #>BusinessService.GetAll(filter, string.Empty, false);
+                m_retValue.IsSuccess = true;
+            }
+            else
+            {
+                throw new InnovaException("Kontoller uyuşmuyor.");
+            }
+            return Json(m_retValue, JsonRequestBehavior.AllowGet);
+        }
+    }
+}

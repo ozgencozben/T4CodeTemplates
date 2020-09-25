@@ -1,0 +1,281 @@
+﻿<#@ template language="C#" HostSpecific="True" #>
+<#@ output extension="cs" #>
+<#@ import namespace="System" #>
+<#@ import namespace="System.Collections.Generic" #>
+<#@ parameter type="System.String" name="ControllerName" #>
+<#@ parameter type="System.String" name="ControllerRootName" #>
+<#@ parameter type="System.String" name="Namespace" #>
+<#@ parameter type="System.String" name="AreaName" #>
+<#
+string routePrefix;
+if (String.IsNullOrEmpty(AreaName)) 
+{
+    routePrefix = ControllerRootName;
+}
+else
+{
+    routePrefix = AreaName + "/" + ControllerRootName;
+}
+#>
+
+using MVCApp.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web.Mvc;
+using System.Web.Routing;
+using Newtonsoft.Json;
+
+<# 
+	string ModelPrefix = ControllerRootName.TrimEnd('s');
+	string ControllerNameFirstCharLower = (Char.ToLowerInvariant(ModelPrefix[0]) + ModelPrefix.Substring(1)).TrimEnd('s');
+
+	string Pluralize(string text, int number = 2)
+    {
+        if (number == 1)
+        {
+            return text;
+        }
+        else
+        {
+            // Create a dictionary of exceptions that have to be checked first
+            // This is very much not an exhaustive list!
+            Dictionary<string, string> exceptions = new Dictionary<string, string>() {
+            { "man", "men" },
+            { "woman", "women" },
+            { "child", "children" },
+            { "tooth", "teeth" },
+            { "foot", "feet" },
+            { "mouse", "mice" },
+            { "belief", "beliefs" } };
+
+            if (exceptions.ContainsKey(text.ToLowerInvariant()))
+            {
+                return exceptions[text.ToLowerInvariant()];
+            }
+            else if (text.EndsWith("y", StringComparison.OrdinalIgnoreCase) &&
+                !text.EndsWith("ay", StringComparison.OrdinalIgnoreCase) &&
+                !text.EndsWith("ey", StringComparison.OrdinalIgnoreCase) &&
+                !text.EndsWith("iy", StringComparison.OrdinalIgnoreCase) &&
+                !text.EndsWith("oy", StringComparison.OrdinalIgnoreCase) &&
+                !text.EndsWith("uy", StringComparison.OrdinalIgnoreCase))
+            {
+                return text.Substring(0, text.Length - 1) + "ies";
+            }
+            else if (text.EndsWith("us", StringComparison.InvariantCultureIgnoreCase))
+            {
+                return text + "es";
+            }
+            else if (text.EndsWith("ss", StringComparison.InvariantCultureIgnoreCase))
+            {
+                return text + "es";
+            }
+            else if (text.EndsWith("s", StringComparison.InvariantCultureIgnoreCase))
+            {
+                return text;
+            }
+            else if (text.EndsWith("x", StringComparison.InvariantCultureIgnoreCase) ||
+                text.EndsWith("ch", StringComparison.InvariantCultureIgnoreCase) ||
+                text.EndsWith("sh", StringComparison.InvariantCultureIgnoreCase))
+            {
+                return text + "es";
+            }
+            else if (text.EndsWith("f", StringComparison.InvariantCultureIgnoreCase) && text.Length > 1)
+            {
+                return text.Substring(0, text.Length - 1) + "ves";
+            }
+            else if (text.EndsWith("fe", StringComparison.InvariantCultureIgnoreCase) && text.Length > 2)
+            {
+                return text.Substring(0, text.Length - 2) + "ves";
+            }
+            else
+            {
+                return text + "s";
+            }
+        }
+    }
+ #>
+
+namespace MVCApp.Controllers
+{
+    public class <#= ControllerName #>  : Controller
+    {
+        #region Variables
+        protected DenemeDbEntities context;
+        protected FormData m_retValue;
+        #endregion
+
+        #region Default Metods
+        protected override void Initialize(RequestContext requestContext)
+        {
+            this.context = new DenemeDbEntities();
+            this.m_retValue = new FormData();
+            base.Initialize(requestContext);
+        }
+
+        public ActionResult Index()
+        {
+            IList<<#= ControllerName.Replace("Controller","") #>DTO> model = new List<RenklerDTO>();
+
+            foreach (var item in context.DnmTabloes.Where(x=>x.AktifMi == true).ToList())
+            {
+                model.Add(new <#= ControllerName.Replace("Controller","") #>DTO()
+                {
+
+                    // TODO : Tüm objeleri DTO türünde modele doldur.
+
+                });
+            }
+
+            return View(model);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult Save(<#= ControllerName.Replace("Controller","") #>DTO model)
+        {
+            try
+            {
+                using (var context = new DenemeDbEntities())
+                {
+                    context.<#= Pluralize(ControllerName.Replace("Controller","")) #>.Add(new <#= ControllerName.Replace("Controller","") #>() 
+					{ 
+
+					// TODO : Modeli DTO ya çevir.
+
+					});
+                    context.SaveChanges();
+                    return RedirectToAction("Index");
+                }
+            }
+            catch (Exception ex)
+            {
+                return RedirectToAction("Index");
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult EditSubmit(<#= ControllerName.Replace("Controller","") #>DTO model)
+        {
+            <#= ControllerName.Replace("Controller","") #> obj = new <#= ControllerName.Replace("Controller","") #>();
+            try
+            {
+                obj = context.<#= Pluralize(ControllerName.Replace("Controller","")) #>.Where(x => x.Id == model.Id).FirstOrDefault();
+
+                // TODO : Modeli <#= ControllerName.Replace("Controller","") #> classına çevir.
+
+                context.SaveChanges();
+
+                return RedirectToAction("Index");
+            }
+            catch (Exception ex)
+            {
+                return RedirectToAction("Index");
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public JsonResult Edit(long Id)
+        {
+            <#= ControllerName.Replace("Controller","") #>DTO model = new <#= ControllerName.Replace("Controller","") #>DTO();
+            <#= ControllerName.Replace("Controller","") #> retVal = new <#= ControllerName.Replace("Controller","") #>();
+            try
+            {
+                context.Configuration.ProxyCreationEnabled = false;
+                retVal = context.<#= Pluralize(ControllerName.Replace("Controller","")) #>.First(x => x.Id == Id);
+
+                // <#= ControllerName.Replace("Controller","") #> classını <#= ControllerName.Replace("Controller","") #>DTO tipinde classa çevir, model olarak dön.
+
+                m_retValue.Data = model;
+                m_retValue.IsSuccess = true;
+                var result = JsonConvert.SerializeObject(m_retValue, Formatting.None, new JsonSerializerSettings() { ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore });
+
+                return Json(result, JsonRequestBehavior.AllowGet);
+
+            }
+            catch (Exception ex)
+            {
+                m_retValue.IsSuccess = false;
+                m_retValue.Message = "Hata oluştu : " + ex.Message;
+                return Json(m_retValue, JsonRequestBehavior.AllowGet);
+            }
+        }
+		
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public JsonResult Passive(long Id)
+        {
+            <#= ControllerName.Replace("Controller","") #> obj = new <#= ControllerName.Replace("Controller","") #>();
+            try
+            {
+                obj = context.<#= Pluralize(ControllerName.Replace("Controller","")) #>.Where(x => x.Id == Id).FirstOrDefault();
+
+                obj.AktifMi = false;
+                context.SaveChanges();
+
+                m_retValue.IsSuccess = true;
+                m_retValue.Message = "Pasife alma işlemi başarılı.";
+                m_retValue.Header = "Bilgi";
+                return Json(m_retValue, JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception ex)
+            {
+                m_retValue.IsSuccess = false;
+                m_retValue.Message = "Hata oluştu : " + ex.Message;
+                return Json(m_retValue, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public JsonResult Delete(long Id)
+        {
+            try
+            {
+                <#= ControllerName.Replace("Controller","") #> obj = new <#= ControllerName.Replace("Controller","") #>();
+                obj = context.<#= Pluralize(ControllerName.Replace("Controller","")) #>.Where(x => x.Id == Id).FirstOrDefault();
+                context.<#= Pluralize(ControllerName.Replace("Controller","")) #>.Attach(obj);
+                context.<#= Pluralize(ControllerName.Replace("Controller","")) #>.Remove(obj);
+                context.SaveChanges();
+
+                m_retValue.IsSuccess = true;
+                m_retValue.Message = "Silme işlemi başarılı.";
+                m_retValue.Header = "Bilgi";
+                return Json(m_retValue, JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception ex)
+            {
+                m_retValue.IsSuccess = false;
+                m_retValue.Message = "Hata oluştu : " + ex.Message;
+                return Json(m_retValue, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public JsonResult GetLookup<#= ControllerName.Replace("Controller","") #>()
+        {
+            try
+            {
+                m_retValue.Data = context.<#= Pluralize(ControllerName.Replace("Controller","")) #>.ToList();
+                m_retValue.IsSuccess = true;
+                var result = JsonConvert.SerializeObject(m_retValue, Formatting.None, new JsonSerializerSettings() { ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore });
+                return Json(result, JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception ex)
+            {
+                m_retValue.IsSuccess = false;
+                m_retValue.Message = "Hata oluştu : " + ex.Message;
+                var result = JsonConvert.SerializeObject(m_retValue, Formatting.None, new JsonSerializerSettings() { ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore });
+                return Json(result, JsonRequestBehavior.AllowGet);
+            }
+        }
+        #endregion
+
+        #region Other Metods
+
+        #endregion
+    }
+}

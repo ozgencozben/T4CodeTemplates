@@ -1,0 +1,117 @@
+﻿<#@ template language="C#" HostSpecific="True" #>
+<#@ output extension="cs" #>
+<#@ import namespace="System" #>
+<#@ import namespace="System.Collections.Generic" #>
+<#@ import namespace="System.IO"#>
+<#@ parameter type="System.String" name="ControllerName" #>
+<#@ parameter type="System.String" name="ControllerRootName" #>
+<#@ parameter type="System.String" name="Namespace" #>
+<#@ parameter type="System.String" name="AreaName" #>
+<#@ include file=".\Manager.ttinclude" #>
+<# var startupPath = Directory.GetCurrentDirectory(); #>
+<# var applicationPath = Directory.GetCurrentDirectory() + "\\Application" + "\\"; #>
+<# var backgroundAppPath = Directory.GetCurrentDirectory() + "\\BackgroundApp"+ "\\"; #>
+<# var domainPath = Directory.GetCurrentDirectory() + "\\Domain"+ "\\"; #>
+<# var infrastructurePath = Directory.GetCurrentDirectory() + "\\Infrastructure"+ "\\"; #>
+<# var presentationPath = Directory.GetCurrentDirectory() + "\\Presentation"+ "\\"; #>
+<# var testPath = Directory.GetCurrentDirectory() + "\\Test"+ "\\"; #>
+<# string[] files = Directory.GetFiles(startupPath, "*API.sln", SearchOption.AllDirectories); #>
+<# var solutionName = files[0].ToString().Replace(startupPath,""); #>
+<# var solutionNameWithoutExtention = solutionName.Replace(".API.sln",""); #>
+<# var solutionNamePure = solutionNameWithoutExtention.Replace("\\",""); #>
+<# var projectApplicationPath = applicationPath + solutionNamePure + ".Application" + "\\"; #>
+<# var projectAbstractionsPath = applicationPath + solutionNamePure + ".Application.Abstractions" + "\\"; #>
+<# var projectWebAPIPath = presentationPath + solutionNamePure + ".WebAPI" + "\\" + "src" + "\\" + "Controllers"; #>
+<#
+string routePrefix;
+if (String.IsNullOrEmpty(AreaName)) 
+{
+    routePrefix = ControllerRootName;
+}
+else
+{
+    routePrefix = AreaName + "/" + ControllerRootName;
+}
+#>
+<# 
+	string ModelPrefix = ControllerRootName.TrimEnd('s');
+	string ControllerNameFirstCharLower = (Char.ToLowerInvariant(ModelPrefix[0]) + ModelPrefix.Substring(1)).TrimEnd('s');
+#>
+/* 
+KocSistem Code Generator (<#=System.DateTime.Now.ToString()#>) Says :
+Codes, classes, models etc successfully generated for entity : <#=ControllerName.Replace("Controller","").ToString()#>
+Delete this controller class after generation, it is not necessary. 
+Also delete under solution folder CodeGenerationWithT4 > CodeTemplates > MvcControllerEmpty new added files.
+Check all folder and files belong projects.
+Dont forget check & customize your generated code.
+*/
+
+<# Directory.CreateDirectory(@projectApplicationPath + "\\" + "src" + "\\" + ControllerName.Replace("Controller","")); #>
+<# var managerInterfaceService = new Manager(Host, GenerationEnvironment, true) { OutputPath =  @projectApplicationPath + "\\" + "src" + "\\" + ControllerName.Replace("Controller","")  }; #>
+<# managerInterfaceService.StartBlock(ControllerName.Replace("Controller","")+"Service" +  ".cs"); #>
+
+// Generated (service) code by KoçSistem 
+
+// <copyright file=<#=ControllerName.Replace("Controller","") + "Service" +  ".cs"#> company="KocSistem">
+// Copyright (c) KocSistem. All rights reserved.
+// Licensed under the Proprietary license. See LICENSE file in the project root for full license information.
+// </copyright>
+
+<# managerInterfaceService.EndBlock(); #>
+<# managerInterfaceService.Process(true); #>
+
+<# Directory.CreateDirectory(@projectApplicationPath + "\\" + "src" + "\\" + ControllerName.Replace("Controller","") + "\\" + "Mappings"); #>
+<# var managerProfile = new Manager(Host, GenerationEnvironment, true) { OutputPath =  @projectApplicationPath + "\\" + "src" + "\\" + ControllerName.Replace("Controller","")+ "\\" + "Mappings"  }; #>
+<# managerProfile.StartBlock(ControllerName.Replace("Controller","")+"Profile" +  ".cs"); #>
+
+// Generated (profile) code by KoçSistem 
+
+// <copyright file=<#=ControllerName.Replace("Controller","") + "Profile" +  ".cs"#> company="KocSistem">
+// Copyright (c) KocSistem. All rights reserved.
+// Licensed under the Proprietary license. See LICENSE file in the project root for full license information.
+// </copyright>
+
+<# managerProfile.EndBlock(); #>
+<# managerProfile.Process(true); #>
+
+<# Directory.CreateDirectory(@projectAbstractionsPath + "\\" + "src" + "\\" + ControllerName.Replace("Controller","")); #>
+<# var managerInterface = new Manager(Host, GenerationEnvironment, true) { OutputPath =  @projectAbstractionsPath + "\\" + "src" + "\\" + ControllerName.Replace("Controller","")  }; #>
+<# managerInterface.StartBlock("I"+ControllerName.Replace("Controller","")+"Service" +  ".cs"); #>
+
+// Generated (interface) code by KoçSistem
+
+// <copyright file=<#="I" + ControllerName.Replace("Controller","") + "Service" +  ".cs"#> company="KocSistem">
+// Copyright (c) KocSistem. All rights reserved.
+// Licensed under the Proprietary license. See LICENSE file in the project root for full license information.
+// </copyright>
+
+<# managerInterface.EndBlock(); #>
+<# managerInterface.Process(true); #>
+
+<# Directory.CreateDirectory(@projectAbstractionsPath + "\\" + "src" + "\\" + ControllerName.Replace("Controller","") + "\\" + "Contracts"); #>
+<# var managerDTO = new Manager(Host, GenerationEnvironment, true) { OutputPath =  @projectAbstractionsPath + "\\" + "src" + "\\" + ControllerName.Replace("Controller","") + "\\" + "Contracts" }; #>
+<# managerDTO.StartBlock("Application"+ControllerName.Replace("Controller","")+"Dto" +  ".cs"); #>
+
+// Generated (dto) code by KoçSistem 
+
+// <copyright file=<#="Application" + ControllerName.Replace("Controller","") + "Dto" +  ".cs"#> company="KocSistem">
+// Copyright (c) KocSistem. All rights reserved.
+// Licensed under the Proprietary license. See LICENSE file in the project root for full license information.
+// </copyright>
+
+<# managerDTO.EndBlock(); #>
+<# managerDTO.Process(true); #>
+
+
+<# var managerWebAPIController = new Manager(Host, GenerationEnvironment, true) { OutputPath = @projectWebAPIPath }; #>
+<# managerWebAPIController.StartBlock(ControllerName.Replace("Controller","")+"Controller" +  ".cs"); #>
+
+// Generated (WebAPI Controller) code by KoçSistem 
+
+// <copyright file=<#= ControllerName.Replace("Controller","") + "Controller" +  ".cs"#> company="KocSistem">
+// Copyright (c) KocSistem. All rights reserved.
+// Licensed under the Proprietary license. See LICENSE file in the project root for full license information.
+// </copyright>
+
+<# managerWebAPIController.EndBlock(); #>
+<# managerWebAPIController.Process(true); #>

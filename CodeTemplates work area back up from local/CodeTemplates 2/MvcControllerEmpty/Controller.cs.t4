@@ -1,0 +1,700 @@
+﻿<#@ template language="C#" HostSpecific="True" #>
+<#@ output extension="cs" #>
+<#@ import namespace="System" #>
+<#@ import namespace="System.Collections.Generic" #>
+<#@ parameter type="System.String" name="ControllerName" #>
+<#@ parameter type="System.String" name="ControllerRootName" #>
+<#@ parameter type="System.String" name="Namespace" #>
+<#@ parameter type="System.String" name="AreaName" #>
+<#
+string routePrefix;
+if (String.IsNullOrEmpty(AreaName)) 
+{
+    routePrefix = ControllerRootName;
+}
+else
+{
+    routePrefix = AreaName + "/" + ControllerRootName;
+}
+#>
+// Generated code by KoçSistem
+
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+using System.Web.Routing;
+using ADF.Contracts.DataContracts;
+using ADF.MVC.Controllers;
+using Newtonsoft.Json;
+using Business.Contracts.Common;
+using Business.Contracts.Custom;
+using Business.Contracts.DataContracts.Models;
+using Business.Contracts.DataContracts.ViewModels;
+using Business.Contracts.ServiceContracts;
+
+<# 
+	string ModelPrefix = ControllerRootName.TrimEnd('s');
+	string ControllerNameFirstCharLower = (Char.ToLowerInvariant(ModelPrefix[0]) + ModelPrefix.Substring(1)).TrimEnd('s');
+
+	string Pluralize(string text, int number = 2)
+    {
+        if (number == 1)
+        {
+            return text;
+        }
+        else
+        {
+            // Create a dictionary of exceptions that have to be checked first
+            // This is very much not an exhaustive list!
+            Dictionary<string, string> exceptions = new Dictionary<string, string>() {
+            { "man", "men" },
+            { "woman", "women" },
+            { "child", "children" },
+            { "tooth", "teeth" },
+            { "foot", "feet" },
+            { "mouse", "mice" },
+            { "belief", "beliefs" } };
+
+            if (exceptions.ContainsKey(text.ToLowerInvariant()))
+            {
+                return exceptions[text.ToLowerInvariant()];
+            }
+            else if (text.EndsWith("y", StringComparison.OrdinalIgnoreCase) &&
+                !text.EndsWith("ay", StringComparison.OrdinalIgnoreCase) &&
+                !text.EndsWith("ey", StringComparison.OrdinalIgnoreCase) &&
+                !text.EndsWith("iy", StringComparison.OrdinalIgnoreCase) &&
+                !text.EndsWith("oy", StringComparison.OrdinalIgnoreCase) &&
+                !text.EndsWith("uy", StringComparison.OrdinalIgnoreCase))
+            {
+                return text.Substring(0, text.Length - 1) + "ies";
+            }
+            else if (text.EndsWith("us", StringComparison.InvariantCultureIgnoreCase))
+            {
+                return text + "es";
+            }
+            else if (text.EndsWith("ss", StringComparison.InvariantCultureIgnoreCase))
+            {
+                return text + "es";
+            }
+            else if (text.EndsWith("s", StringComparison.InvariantCultureIgnoreCase))
+            {
+                return text;
+            }
+            else if (text.EndsWith("x", StringComparison.InvariantCultureIgnoreCase) ||
+                text.EndsWith("ch", StringComparison.InvariantCultureIgnoreCase) ||
+                text.EndsWith("sh", StringComparison.InvariantCultureIgnoreCase))
+            {
+                return text + "es";
+            }
+            else if (text.EndsWith("f", StringComparison.InvariantCultureIgnoreCase) && text.Length > 1)
+            {
+                return text.Substring(0, text.Length - 1) + "ves";
+            }
+            else if (text.EndsWith("fe", StringComparison.InvariantCultureIgnoreCase) && text.Length > 2)
+            {
+                return text.Substring(0, text.Length - 2) + "ves";
+            }
+            else
+            {
+                return text + "s";
+            }
+        }
+    }
+ #>
+
+namespace Controllers
+{
+    public class <#= ControllerName #>  : BaseController
+    {
+        #region Variables
+		protected Common.Common.FormData m_retValue;
+
+		[Serializable]
+        public class DataTableResult<T>
+        {
+            public int draw { get; set; }
+
+            public int recordsTotal { get; set; }
+
+            public int recordsFiltered { get; set; }
+
+            public IList<T> data { get; set; }
+        }
+        #endregion
+
+        #region Default Metods
+        protected override void Initialize(RequestContext requestContext)
+        {
+            base.Initialize(requestContext);
+        }
+
+		[YetkiKontrol(SecurityKeys.<#= ControllerName.Replace("Controller","") #>_Goruntuleme)]
+        [ViewBagDoldur(SecurityKeys.<#= ControllerName.Replace("Controller","") #>_Yetkileri)]
+        [SayfaYonlendir]
+        public ActionResult Index()
+        {
+            return View();
+        }
+
+		//Table Ajax Resource
+		[HttpPost]
+        [YetkiKontrol(SecurityKeys.<#= ControllerName.Replace("Controller","") #>_Listeleme)]
+        public ActionResult GetAll(DataTableParameters dataTable, bool? active, string[] filterArray)
+        {
+            IList<<#= ControllerName.Replace("Controller","") #>Vm> obj = new List<<#= ControllerName.Replace("Controller","") #>Vm>();
+
+            var pageIndex = dataTable.Start / dataTable.Length;
+            var pageSize = dataTable.Length;
+
+            var orderBy = dataTable.SortOrder;
+            if (orderBy == "Id")
+                orderBy = "CreatedDate DESC";
+
+            var ascending = true;
+            if (orderBy.Contains("DESC"))
+            {
+                ascending = false;
+                orderBy = orderBy.Replace("DESC", string.Empty).Trim();
+            }
+
+            var serviceResult =
+                ProxyHelper.ExecuteCall<I<#= ControllerName.Replace("Controller","") #>Service, ServiceResult<PagedDataList>>(srv => srv.GetAllAjax(active, pageIndex, pageSize, orderBy, ascending, filterArray));
+
+            var recordsTotal = serviceResult.Result.RecordsTotal;
+            obj = serviceResult.Result.ResultSet as List<<#= ControllerName.Replace("Controller","") #>Vm>;
+            var recordsFiltered = serviceResult.Result.RecordsFiltered;
+
+            DataTableResult<<#= ControllerName.Replace("Controller","") #>Vm> result = new DataTableResult<<#= ControllerName.Replace("Controller","") #>Vm>
+            {
+                draw = dataTable.Draw,
+                data = obj,
+                recordsTotal = recordsTotal,
+                recordsFiltered = recordsFiltered
+            };
+
+            return Json(result);
+        }
+
+		//Create Modal
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [YetkiKontrol(SecurityKeys.<#= ControllerName.Replace("Controller","") #>_Ekleme)]
+        public JsonResult Save(<#= ControllerName.Replace("Controller","") #>Vm model)
+        {
+            this.m_retValue = new Common.Common.FormData();
+
+            try
+            {
+                if (ModelState.IsValid)
+                {
+					//if (!MukerrerMi(model))
+                    //{
+						var serviceResult = ProxyHelper.ExecuteCall<I<#= ControllerName.Replace("Controller","") #>Service, ServiceResult<bool>>(srv => srv.Save(model));
+						m_retValue.IsSuccess = true;
+						return Json(m_retValue, JsonRequestBehavior.AllowGet);
+					//}
+					//else
+                    //{
+                    //  m_retValue.IsSuccess = false;
+                    //  m_retValue.Message = Res.Res.MukerrerKayit;
+                    //  return Json(m_retValue, JsonRequestBehavior.AllowGet);
+                    //}
+                }
+                else
+                {
+                    m_retValue.IsSuccess = false;
+                    m_retValue.Message = Res.Res.InvalidModel;
+                    return Json(m_retValue, JsonRequestBehavior.AllowGet);
+                }
+            }
+            catch (Exception ex)
+            {
+                m_retValue.IsSuccess = false;
+                m_retValue.Message = Res.Res.HataOlustu + ex.Message;
+                return Json(m_retValue, JsonRequestBehavior.AllowGet);
+            }
+        }	
+
+		//Edit Modal
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [YetkiKontrol(SecurityKeys.<#= ControllerName.Replace("Controller","") #>_Guncelleme)]
+        public JsonResult GetVm(long id)
+        {
+            this.m_retValue = new Common.Common.FormData();
+
+            try
+            {
+                var serviceResult = ProxyHelper.ExecuteCall<I<#= ControllerName.Replace("Controller","") #>Service, ServiceResult<<#= ControllerName.Replace("Controller","") #>Vm>>(srv => srv.GetVm(id));
+                m_retValue.Data = serviceResult.Result;
+                m_retValue.IsSuccess = true;
+                var result = JsonConvert.SerializeObject(m_retValue, Formatting.None, new JsonSerializerSettings() { ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore });
+            }
+            catch (Exception ex)
+            {
+                m_retValue.IsSuccess = false;
+                m_retValue.Message = Res.Res.HataOlustu + ex.Message;
+            }
+            return Json(m_retValue, JsonRequestBehavior.AllowGet);
+        }
+
+		//Getting Data By Writing Native SQLs
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public JsonResult GetNative()
+        {
+            this.m_retValue = new Common.Common.FormData();
+
+            try
+            {
+                var serviceResult = ProxyHelper.ExecuteCall<I<#= ControllerName.Replace("Controller","") #>Service, ServiceResult<IList<<#= ControllerName.Replace("Controller","") #>Vm>>>(srv => srv.GetNative(true, ""));
+                m_retValue.Data = serviceResult.Result;
+                m_retValue.IsSuccess = true;
+                var result = JsonConvert.SerializeObject(m_retValue, Formatting.None, new JsonSerializerSettings() { ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore });
+            }
+            catch (Exception ex)
+            {
+                m_retValue.IsSuccess = false;
+                m_retValue.Message = Res.Res.HataOlustu + ex.Message;
+            }
+            return Json(m_retValue, JsonRequestBehavior.AllowGet);
+        }
+
+		// Edit Modal Submit
+        [ValidateAntiForgeryToken]
+        [YetkiKontrol(SecurityKeys.<#= ControllerName.Replace("Controller","") #>_Guncelleme)]
+        public JsonResult Update(<#= ControllerName.Replace("Controller","") #>Vm model)
+        {
+            this.m_retValue = new Common.Common.FormData();
+
+            try
+            {
+                if (ModelState.IsValid)
+                {
+                    var serviceResult = ProxyHelper.ExecuteCall<I<#= ControllerName.Replace("Controller","") #>Service, ServiceResult<bool>>(srv => srv.Update(model));
+                    m_retValue.IsSuccess = true;
+                    return Json(m_retValue, JsonRequestBehavior.AllowGet);
+                }
+                else
+                {
+                    m_retValue.IsSuccess = false;
+                    m_retValue.Message = Res.Res.InvalidModel;
+                    return Json(m_retValue, JsonRequestBehavior.AllowGet);
+                }
+            }
+            catch (Exception ex)
+            {
+                m_retValue.IsSuccess = false;
+                m_retValue.Message = Res.Res.HataOlustu + ex.Message;
+                return Json(m_retValue, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+		// Make Resource Passive
+        [ValidateAntiForgeryToken]
+        [YetkiKontrol(SecurityKeys.<#= ControllerName.Replace("Controller","") #>_Silme)]
+        public JsonResult Passive(long id)
+        {
+            this.m_retValue = new Common.Common.FormData();
+
+            try
+            {
+                var serviceResult = ProxyHelper.ExecuteCall<I<#= ControllerName.Replace("Controller","") #>Service, ServiceResult<bool>>(srv => srv.Passive(id));
+                if (!serviceResult.Result)
+                {
+                    m_retValue.IsSuccess = false;
+                    m_retValue.Message = serviceResult.Message;
+                }
+                else
+                    m_retValue.IsSuccess = true;
+            }
+            catch (Exception ex)
+            {
+                m_retValue.IsSuccess = false;
+                m_retValue.Message = Res.Res.HataOlustu + ex.Message;
+            }
+            return Json(m_retValue, JsonRequestBehavior.AllowGet);
+        }
+
+		// Delete Record Completely 
+        [ValidateAntiForgeryToken]
+        [YetkiKontrol(SecurityKeys.<#= ControllerName.Replace("Controller","") #>_Silme)]
+        public JsonResult Delete(long id)
+        {
+            this.m_retValue = new Common.Common.FormData();
+
+            try
+            {
+                var serviceResult = ProxyHelper.ExecuteCall<I<#= ControllerName.Replace("Controller","") #>Service, ServiceResult<bool>>(srv => srv.Delete(id));
+                if (!serviceResult.Result)
+                {
+                    m_retValue.IsSuccess = false;
+                    m_retValue.Message = serviceResult.Message;
+                }
+                else
+                    m_retValue.IsSuccess = true;
+            }
+            catch (Exception ex)
+            {
+                m_retValue.IsSuccess = false;
+                m_retValue.Message = Res.Res.HataOlustu + ex.Message;
+            }
+
+            return Json(m_retValue, JsonRequestBehavior.AllowGet);
+        }
+        #endregion
+
+        #region Other Metods
+		private bool MukerrerMi(<#= ControllerName.Replace("Controller","") #>Vm model)
+        {
+            var retval = true;
+            try
+            {
+                var serviceResult = ProxyHelper.ExecuteCall<I<#= ControllerName.Replace("Controller","") #>Service, ServiceResult<bool>>(srv => srv.IsDuplicateRecord(model));
+                retval = serviceResult.Result;
+                return retval;
+            }
+            catch (Exception)
+            {
+                return retval;
+            }
+        }
+        #endregion
+    }
+}
+
+
+
+
+
+// Generated code by KoçSistem move to ServiceContracts
+
+using System.Collections.Generic;
+using ADF.Contracts.DataContracts;
+using ADF.Contracts.FaultContracts;
+using Business.Contracts.DataContracts.ViewModels;
+using System.ServiceModel;
+using Business.Contracts.Custom;
+using Business.Contracts.DataContracts.Models;
+
+namespace Business.Contracts.ServiceContracts
+{
+
+[ServiceContract(Namespace = "http://localhost/<#= ControllerName.Replace("Controller","") #>Service/")]
+    public interface I<#= ControllerName.Replace("Controller","") #>Service
+    {
+        [OperationContract]
+        [FaultContract(typeof(ServiceException))]
+        ServiceResult<<#= ControllerName.Replace("Controller","") #>> Get(long id);
+
+        [OperationContract]
+        [FaultContract(typeof(ServiceException))]
+        ServiceResult<PagedDataList> GetAllAjax(bool? active, int pageIndex, int pageSize, string orderBy, bool ascending, string[] filterArray);
+
+        [OperationContract]
+        [FaultContract(typeof(ServiceException))]
+        ServiceResult<IList<<#= ControllerName.Replace("Controller","") #>Vm>> GetAll(bool? active);
+       
+        [OperationContract]
+        [FaultContract(typeof(ServiceException))]
+        ServiceResult<bool> Save(<#= ControllerName.Replace("Controller","") #>Vm model);
+
+        [OperationContract]
+        [FaultContract(typeof(ServiceException))]
+        ServiceResult<<#= ControllerName.Replace("Controller","") #>Vm> GetVm(long id);
+
+		[OperationContract]
+        [FaultContract(typeof(ServiceException))]
+        ServiceResult<IList<<#= ControllerName.Replace("Controller","") #>Vm>> GetNative(bool active, string condition);
+
+        [OperationContract]
+        [FaultContract(typeof(ServiceException))]
+        ServiceResult<bool> Update(<#= ControllerName.Replace("Controller","") #>Vm model);
+
+        [OperationContract]
+        [FaultContract(typeof(ServiceException))]
+        ServiceResult<bool> Passive(long id);
+
+        [OperationContract]
+        [FaultContract(typeof(ServiceException))]
+        ServiceResult<bool> Delete(long id);
+
+		[OperationContract]
+        [FaultContract(typeof(ServiceException))]
+        ServiceResult<bool> IsDuplicateRecord(<#= ControllerName.Replace("Controller","") #>Vm model);
+    }
+}
+
+
+
+
+
+// Generated code by KoçSistem move to BusinessImplemenations
+
+using System;
+using System.Collections.Generic;
+using ADF.Common.ServiceComponents.Infrastructure;
+using ADF.Contracts.DataContracts;
+using Business.Contracts.DataContracts.Models;
+using Business.Contracts.DataContracts.ViewModels;
+using Business.Contracts.ServiceContracts;
+using System.Linq;
+using System.Web;
+using ADF.Contracts.FaultContracts;
+using AutoMapper.QueryableExtensions;
+using Business.Contracts.Custom;
+using System.Linq.Dynamic;
+
+namespace Business.Services.BusinessImplementations
+{
+
+ public class <#= ControllerName.Replace("Controller","") #>Service : BusinessBase, I<#= ControllerName.Replace("Controller","") #>Service
+    {
+        public ServiceResult<<#= ControllerName.Replace("Controller","") #>> Get(long id)
+        {
+            try
+            {
+                return new ServiceResult<<#= ControllerName.Replace("Controller","") #>>(UnitOfWork.Repository<<#= ControllerName.Replace("Controller","") #>>().FirstOrDefault(x => x.Id == id));
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResult<<#= ControllerName.Replace("Controller","") #>>(null, ex.Message, MessageResultState.FAIL, FaultCodes.Unset);
+            }
+        }
+
+        public ServiceResult<PagedDataList> GetAllAjax(bool? active, int pageIndex, int pageSize, string orderBy, bool ascending, string[] filterArray)
+        {
+            var retval = new PagedDataList();
+            var list = new List<<#= ControllerName.Replace("Controller","") #>Vm>();
+
+            orderBy += ascending ? " asc" : " desc";
+
+            var filterUsed = false;
+            
+			//TODO filtreler sırasıyla tanımlanıcak ve doldurulacak.
+			//var FilAdi = string.Empty;
+			//
+            //if (filterArray != null)
+            //{
+            //    if (filterArray[0] != "")
+            //    {
+            //        FilAdi = filterArray[0];
+            //        filterUsed = true;
+            //    }
+			//
+            //}
+
+            try
+            {
+                var skip = pageIndex * pageSize;
+
+                list =
+                    UnitOfWork.Repository<<#= ControllerName.Replace("Controller","") #>>()
+                        .ProjectTo<<#= ControllerName.Replace("Controller","") #>Vm>()
+                        .Where(x => (active.HasValue) ? x.AktifMi == active : true)
+                         //.Where(x => (FilAdi != string.Empty) ? x.Adi.Contains(FilAdi) : true)
+                        .OrderBy(orderBy)
+                        .Skip(skip)
+                        .ToList();
+
+                retval.RecordsTotal = list.Count();
+                retval.ResultSet = list.Take(pageSize).ToList();
+
+				if (!active.HasValue)
+					retval.RecordsFiltered = filterUsed ? list.Count() : UnitOfWork.Repository<<#= ControllerName.Replace("Controller","") #>>().ProjectTo<<#= ControllerName.Replace("Controller","") #>Vm>().Count();
+				else
+					retval.RecordsFiltered = filterUsed ? list.Count() : UnitOfWork.Repository<<#= ControllerName.Replace("Controller","") #>>().ProjectTo<<#= ControllerName.Replace("Controller","") #>Vm>().Count(x => x.AktifMi == active.Value);
+
+                return new ServiceResult<PagedDataList>(retval, "SUCCESS", MessageResultState.SUCCESS, FaultCodes.Unset);
+
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResult<PagedDataList>(null, ex.Message, MessageResultState.FAIL, FaultCodes.Unset);
+            }
+        }
+
+        public ServiceResult<IList<<#= ControllerName.Replace("Controller","") #>Vm>> GetAll(bool? active)
+        {
+            try
+            {
+                if (!active.HasValue)
+                    return new ServiceResult<IList<<#= ControllerName.Replace("Controller","") #>Vm>>(UnitOfWork.Repository<<#= ControllerName.Replace("Controller","") #>>().ProjectTo<<#= ControllerName.Replace("Controller","") #>Vm>().ToList());
+                else
+                    return new ServiceResult<IList<<#= ControllerName.Replace("Controller","") #>Vm>>(UnitOfWork.Repository<<#= ControllerName.Replace("Controller","") #>>().ProjectTo<<#= ControllerName.Replace("Controller","") #>Vm>().Where(x => x.AktifMi == active).ToList());
+
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResult<IList<<#= ControllerName.Replace("Controller","") #>Vm>>(null, ex.Message, MessageResultState.FAIL, FaultCodes.Unset);
+            }
+        }
+
+        public ServiceResult<bool> Save(<#= ControllerName.Replace("Controller","") #>Vm model)
+        {
+            try
+            {
+                var obj = AutoMapper.Mapper.Map<<#= ControllerName.Replace("Controller","") #>Vm, <#= ControllerName.Replace("Controller","") #>>(model);
+                obj.CreatedDate = DateTime.Now;
+                obj.CreatedBy = Convert.ToString(HttpContext.Current.Session[Contracts.Common.Constants.USER_ID]);
+                obj.AktifMi = true;
+                UnitOfWork.Repository<<#= ControllerName.Replace("Controller","") #>>().Insert(obj);
+                UnitOfWork.SaveChanges();
+                return new ServiceResult<bool>(true, "Success", MessageResultState.SUCCESS, FaultCodes.Unset);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResult<bool>(false, ex.Message, MessageResultState.FAIL, FaultCodes.Unset);
+            }
+        }
+
+        public ServiceResult<<#= ControllerName.Replace("Controller","") #>Vm> GetVm(long id)
+        {
+            try
+            {
+                return new ServiceResult<<#= ControllerName.Replace("Controller","") #>Vm>(UnitOfWork.Repository<<#= ControllerName.Replace("Controller","") #>>().ProjectTo<<#= ControllerName.Replace("Controller","") #>Vm>().FirstOrDefault(x => x.Id == id));
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResult<<#= ControllerName.Replace("Controller","") #>Vm>(null, ex.Message, MessageResultState.FAIL, FaultCodes.Unset);
+            }
+        }
+
+		public ServiceResult<IList<<#= ControllerName.Replace("Controller","") #>Vm>> GetNative(bool active, string condition)
+        {
+            try
+            {
+                var whereConditions = "\"1\" = \"1\"";
+
+                if (!string.IsNullOrEmpty(condition) && condition != "")
+                    whereConditions = condition;
+
+                return new ServiceResult<IList<<#= ControllerName.Replace("Controller","") #>Vm>>(UnitOfWork.Repository<<#= ControllerName.Replace("Controller","") #>>().ProjectTo<<#= ControllerName.Replace("Controller","") #>Vm>().Where(x => x.AktifMi == active).Where(whereConditions).ToList());
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResult<IList<<#= ControllerName.Replace("Controller","") #>Vm>>(null, ex.Message, MessageResultState.FAIL, FaultCodes.Unset);
+            }
+        }
+
+        public ServiceResult<bool> Update(<#= ControllerName.Replace("Controller","") #>Vm model)
+        {
+            try
+            {
+                var obj = UnitOfWork.Repository<<#= ControllerName.Replace("Controller","") #>>().FirstOrDefault(x => x.Id == model.Id);
+                obj.AktifMi = model.AktifMi;
+				//TODO veri bağlama işlemi yap.
+                //obj.Adi = model.Adi;
+                //obj.AdiEn = model.AdiEn;
+                //obj.AdiRu = model.AdiRu;
+                obj.UpdatedDate = DateTime.Now;
+                obj.UpdatedBy = Convert.ToString(HttpContext.Current.Session[Contracts.Common.Constants.USER_ID]);
+                UnitOfWork.RepositoryAsync<<#= ControllerName.Replace("Controller","") #>>().Update(obj);
+                UnitOfWork.SaveChanges();
+                return new ServiceResult<bool>(true, "Success", MessageResultState.SUCCESS, FaultCodes.Unset);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResult<bool>(false, ex.Message, MessageResultState.FAIL, FaultCodes.Unset);
+            }
+        }
+
+        public ServiceResult<bool> Passive(long id)
+        {
+            try
+            {
+                var obj = UnitOfWork.Repository<<#= ControllerName.Replace("Controller","") #>>().FirstOrDefault(x => x.Id == id);
+                obj.AktifMi = false;
+				obj.UpdatedBy = Convert.ToString(HttpContext.Current.Session[Contracts.Common.Constants.USER_ID]);
+                obj.UpdatedDate = DateTime.Now;
+                UnitOfWork.RepositoryAsync<<#= ControllerName.Replace("Controller","") #>>().Update(obj);
+                UnitOfWork.SaveChanges();
+                return new ServiceResult<bool>(true, "Success", MessageResultState.SUCCESS, FaultCodes.Unset);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResult<bool>(false, ex.Message, MessageResultState.FAIL, FaultCodes.Unset);
+            }
+        }
+
+        public ServiceResult<bool> Delete(long id)
+        {
+            try
+            {
+                UnitOfWork.RepositoryAsync<<#= ControllerName.Replace("Controller","") #>>().Delete(id);
+                UnitOfWork.SaveChanges();
+                return new ServiceResult<bool>(true, "Success", MessageResultState.SUCCESS, FaultCodes.Unset);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResult<bool>(false, ex.Message, MessageResultState.FAIL, FaultCodes.Unset);
+            }
+        }
+
+		public ServiceResult<bool> IsDuplicateRecord(<#= ControllerName.Replace("Controller","") #>Vm model)
+        {
+            try
+            {
+				int check = 0;
+
+                //check =
+                //    UnitOfWork.Repository<<#= ControllerName.Replace("Controller","") #>>()
+                //        .Where(x => x.AktifMi == true)
+                //        .Count(x => x.Adi == model.Adi);
+
+				//// Mükerrerlik kontrolü için bakılacak başka alanlar varsa burada kontrol edilecekler.
+				//// check işlemi farklı alanlar için çoğaltılabilinir.
+
+				//if (check == 0)
+                //{
+                //    check = UnitOfWork.Repository<Kullanici>()
+                //      .Where(x => x.AktifMi == true)
+                //      .Count(x => x.GlobalId == model.GlobalId);
+                //}
+
+                return check > 0 ? new ServiceResult<bool>(true, "Success", MessageResultState.SUCCESS, FaultCodes.Unset) : new ServiceResult<bool>(false, "Success", MessageResultState.SUCCESS, FaultCodes.Unset);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResult<bool>(false, ex.Message, MessageResultState.FAIL, FaultCodes.Unset);
+            }
+        }
+    }
+}
+
+#region <#= ControllerName.Replace("Controller","") #> Yetkileri
+[Display(Name = "<#= ControllerName.Replace("Controller","") #>_Yetkileri")]
+public const string <#= ControllerName.Replace("Controller","") #>_Yetkileri = "<#= ControllerName.Replace("Controller","") #>.*";
+
+[Display(Name = "<#= ControllerName.Replace("Controller","") #>_Listeleme")]
+public const string <#= ControllerName.Replace("Controller","") #>_Listeleme = "<#= ControllerName.Replace("Controller","") #>.Listeleme";
+
+[Display(Name = "<#= ControllerName.Replace("Controller","") #>_Goruntuleme")]
+public const string <#= ControllerName.Replace("Controller","") #>_Goruntuleme = "<#= ControllerName.Replace("Controller","") #>.Goruntuleme";
+
+[Display(Name = "<#= ControllerName.Replace("Controller","") #>_Ekleme")]
+public const string <#= ControllerName.Replace("Controller","") #>_Ekleme = "<#= ControllerName.Replace("Controller","") #>.Ekleme";
+
+[Display(Name = "<#= ControllerName.Replace("Controller","") #>_Guncelleme")]
+public const string <#= ControllerName.Replace("Controller","") #>_Guncelleme = "<#= ControllerName.Replace("Controller","") #>.Guncelleme";
+
+[Display(Name = "<#= ControllerName.Replace("Controller","") #>_Silme")]
+public const string <#= ControllerName.Replace("Controller","") #>_Silme = "<#= ControllerName.Replace("Controller","") #>.Silme";
+#endregion
+
+--<#= ControllerName.Replace("Controller","") #> Yetkileri
+INSERT [dbo].[YetkiAnahtaris] VALUES (N'<#= ControllerName.Replace("Controller","") #>_Yetkileri', N'<#= ControllerName.Replace("Controller","") #>.*', 1, NULL, NULL, NULL, NULL, N'<#= ControllerName.Replace("Controller","") #>_YetkileriEn', N'<#= ControllerName.Replace("Controller","") #>_YetkileriRu')
+GO
+INSERT [dbo].[YetkiAnahtaris] VALUES (N'<#= ControllerName.Replace("Controller","") #>_Listeleme', N'<#= ControllerName.Replace("Controller","") #>.Listeleme', 1, NULL, NULL, NULL, NULL, N'<#= ControllerName.Replace("Controller","") #>_ListelemeEn', N'<#= ControllerName.Replace("Controller","") #>_ListelemeRu')
+GO
+INSERT [dbo].[YetkiAnahtaris] VALUES (N'<#= ControllerName.Replace("Controller","") #>_Goruntuleme', N'<#= ControllerName.Replace("Controller","") #>.Goruntuleme', 1, NULL, NULL, NULL, NULL, N'<#= ControllerName.Replace("Controller","") #>_GoruntulemeEn', N'<#= ControllerName.Replace("Controller","") #>_GoruntulemeRu')
+GO
+INSERT [dbo].[YetkiAnahtaris] VALUES (N'<#= ControllerName.Replace("Controller","") #>_Ekleme', N'<#= ControllerName.Replace("Controller","") #>.Ekleme', 1, NULL, NULL, NULL, NULL, N'<#= ControllerName.Replace("Controller","") #>_EklemeEn', N'<#= ControllerName.Replace("Controller","") #>_EklemeRu')
+GO
+INSERT [dbo].[YetkiAnahtaris] VALUES (N'<#= ControllerName.Replace("Controller","") #>_Guncelleme', N'<#= ControllerName.Replace("Controller","") #>.Guncelleme', 1, NULL, NULL, NULL, NULL, N'<#= ControllerName.Replace("Controller","") #>_GuncellemeEn', N'<#= ControllerName.Replace("Controller","") #>_GuncellemeRu')
+GO
+INSERT [dbo].[YetkiAnahtaris] VALUES (N'<#= ControllerName.Replace("Controller","") #>_Silme', N'<#= ControllerName.Replace("Controller","") #>.Silme', 1, NULL, NULL, NULL, NULL, N'<#= ControllerName.Replace("Controller","") #>_SilmeEn', N'<#= ControllerName.Replace("Controller","") #>_SilmeRu')
+GO
